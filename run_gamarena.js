@@ -75,9 +75,11 @@ async function runSession(index) {
 
         // Run engagement
         await runGamingTask(page);
+        return true;
 
     } catch (err) {
         console.error(`   ❌ [Session #${index + 1}] Failed:`, err.message);
+        return false;
     } finally {
         // Safe cleanup with timeouts to prevent hanging the runner
         try {
@@ -115,7 +117,23 @@ async function startTraffic() {
         const batch = [];
         for (let j = 0; j < CONCURRENT && (i + j) < TOTAL; j++) {
             await new Promise(r => setTimeout(r, 3000 + Math.random() * 2000));
-            batch.push(runSession(i + j));
+            
+            const sessionIndex = i + j;
+            batch.push((async () => {
+                let success = false;
+                let attempts = 0;
+                while (!success && attempts < 3) {
+                    attempts++;
+                    if (attempts > 1) {
+                        console.log(`\n🔄 [Session #${sessionIndex + 1}] Retrying session (Attempt ${attempts}/3) with a fresh IP...`);
+                        await new Promise(r => setTimeout(r, 5000)); // wait 5s before retry
+                    }
+                    success = await runSession(sessionIndex);
+                }
+                if (!success) {
+                    console.error(`\n❌ [Session #${sessionIndex + 1}] Failed completely after 3 attempts.`);
+                }
+            })());
         }
         await Promise.all(batch);
 
