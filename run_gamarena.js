@@ -36,15 +36,16 @@ async function runSession(index) {
     const localProxy = await ProxyChain.anonymizeProxy(proxyUrl);
     console.log(`   🔗 Proxy bridge: ${localProxy}`);
 
-    const isCodespace = process.env.CODESPACES === 'true';
-
-    const browser = await chromium.launch({
-        headless: isCodespace || false, // Headless on Codespaces, visible locally
-        proxy: { server: localProxy },
-        args: ['--disable-blink-features=AutomationControlled']
-    });
-
+    let browser = null;
     try {
+        const isCodespace = process.env.CODESPACES === 'true';
+
+        browser = await chromium.launch({
+            headless: isCodespace || false, // Headless on Codespaces, visible locally
+            proxy: { server: localProxy },
+            args: ['--disable-blink-features=AutomationControlled']
+        });
+
         const context = await browser.newContext({
             viewport: vp,
             userAgent: ua,
@@ -80,10 +81,12 @@ async function runSession(index) {
     } finally {
         // Safe cleanup with timeouts to prevent hanging the runner
         try {
-            await Promise.race([
-                browser.close(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Browser close timeout')), 5000))
-            ]);
+            if (browser) {
+                await Promise.race([
+                    browser.close(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Browser close timeout')), 5000))
+                ]);
+            }
         } catch (e) {
             console.error(`   ⚠️ Browser close: ${e.message}`);
         }
