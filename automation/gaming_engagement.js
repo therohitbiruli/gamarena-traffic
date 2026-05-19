@@ -22,10 +22,24 @@ const REFERRERS = [
 
 async function runGamingTask(page) {
     try {
-        // Random persona
-        const personas = ['casual', 'explorer', 'gamer'];
-        const persona = personas[Math.floor(Math.random() * personas.length)];
-        console.log(`🎭 Persona: ${persona}`);
+        // Weighted persona selection: 35% casual, 35% explorer, 20% gamer, 10% hardcore
+        const rand = Math.random();
+        let persona = 'casual';
+        if (rand < 0.35) {
+            persona = 'casual';
+        } else if (rand < 0.70) {
+            persona = 'explorer';
+        } else if (rand < 0.90) {
+            persona = 'gamer';
+        } else {
+            persona = 'hardcore';
+        }
+
+        if (persona === 'hardcore') {
+            console.log(`🔥 Persona: ${persona} (Hardcore Session: 10+ min, 5 games)`);
+        } else {
+            console.log(`🎭 Persona: ${persona}`);
+        }
 
         // Random referrer
         const referrer = REFERRERS[Math.floor(Math.random() * REFERRERS.length)];
@@ -50,7 +64,7 @@ async function runGamingTask(page) {
 
         // --- PHASE 2: NATURAL SCROLLING ---
         console.log('📜 Scrolling...');
-        const scrolls = persona === 'explorer' ? 6 : 3;
+        const scrolls = persona === 'hardcore' ? 10 : (persona === 'explorer' ? 6 : 3);
         for (let i = 0; i < scrolls; i++) {
             // Smooth scroll with random distance
             await page.mouse.wheel(0, 200 + Math.random() * 400);
@@ -67,7 +81,7 @@ async function runGamingTask(page) {
         }
 
         // --- PHASE 3: CLICK INTO GAMES ---
-        const gameCount = persona === 'gamer' ? 3 : 2;
+        const gameCount = persona === 'hardcore' ? 5 : (persona === 'gamer' ? 3 : 2);
         console.log(`🎮 Will visit ${gameCount} games...`);
 
         for (let g = 0; g < gameCount; g++) {
@@ -103,7 +117,12 @@ async function runGamingTask(page) {
                 await clearOverlays(page);
 
                 // "Play" the game — simulate interaction
-                const playTime = (60 + Math.random() * 90) * 1000; // 1-2.5 min per game
+                let playTime;
+                if (persona === 'hardcore') {
+                    playTime = (100 + Math.random() * 80) * 1000; // 1.6 to 3 min per game
+                } else {
+                    playTime = (60 + Math.random() * 90) * 1000;  // 1 to 2.5 min per game
+                }
                 console.log(`⏱️ Playing for ${Math.round(playTime / 1000)}s...`);
 
                 const start = Date.now();
@@ -139,15 +158,16 @@ async function runGamingTask(page) {
             }
         }
 
-        // --- PHASE 4: BROWSE CONTENT (some users do this) ---
-        if (persona === 'explorer' && Math.random() > 0.4) {
+        // --- PHASE 4: BROWSE CONTENT (explorer & hardcore users do this) ---
+        if ((persona === 'explorer' || persona === 'hardcore') && Math.random() > 0.3) {
             const contentPage = PAGES.content[Math.floor(Math.random() * PAGES.content.length)];
             console.log(`📖 Reading: ${contentPage}`);
             await page.goto(contentPage, { waitUntil: 'commit', timeout: 60000 });
             await page.waitForTimeout(3000);
 
             // Scroll through content
-            for (let i = 0; i < 4; i++) {
+            const readScrolls = persona === 'hardcore' ? 8 : 4;
+            for (let i = 0; i < readScrolls; i++) {
                 await page.mouse.wheel(0, 300 + Math.random() * 300);
                 await page.waitForTimeout(2000 + Math.random() * 3000);
             }
