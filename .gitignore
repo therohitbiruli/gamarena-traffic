@@ -1,0 +1,13 @@
+# Ignore dependencies
+node_modules/
+
+# Ignore local config (secrets)
+.env
+accounts.json
+
+# Ignore screenshots and temp files
+*.png
+*.txt
+*.xml
+tmp/
+profiles/
