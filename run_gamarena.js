@@ -38,10 +38,10 @@ async function runSession(index) {
 
     let browser = null;
     try {
-        const isCodespace = process.env.CODESPACES === 'true';
+        const isHeadless = process.env.HEADLESS === 'true';
 
         browser = await chromium.launch({
-            headless: isCodespace || false, // Headless on Codespaces, visible locally
+            headless: isHeadless, // Default to headful (false) to bypass Cloudflare. Use XVFB on Linux.
             proxy: { server: localProxy },
             args: ['--disable-blink-features=AutomationControlled']
         });
