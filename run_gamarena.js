@@ -51,6 +51,10 @@ async function runSession(index) {
             userAgent: ua,
             locale: 'en-US',
             timezoneId: 'America/Los_Angeles',
+            recordVideo: {
+                dir: 'videos/',
+                size: vp
+            }
         });
 
         // Block fonts to save bandwidth
@@ -75,6 +79,18 @@ async function runSession(index) {
 
         // Run engagement
         await runGamingTask(page);
+
+        // Log video path if successfully created
+        try {
+            const video = page.video();
+            if (video) {
+                const videoPath = await video.path();
+                console.log(`   📹 Video saved: ${videoPath.split('/').pop()}`);
+            }
+        } catch (e) {
+            // Silence video path errors
+        }
+
         return true;
 
     } catch (err) {
