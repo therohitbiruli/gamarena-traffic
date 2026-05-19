@@ -157,6 +157,7 @@ async function runGamingTask(page) {
 
     } catch (err) {
         console.error('❌ Task Error:', err.message);
+        throw err; // Rethrow to trigger retries in runner
     }
 }
 
