@@ -181,8 +181,75 @@ async function runGamingTask(page) {
     }
 }
 
+async function handleGoogleVignette(page) {
+    try {
+        if (page.url().includes('#google_vignette')) {
+            console.log('🛡️ Google Vignette detected!');
+            
+            // Wait 4-9 seconds to look like a human reading the ad
+            const waitBeforeAction = 4000 + Math.random() * 5000;
+            await page.waitForTimeout(waitBeforeAction);
+
+            // Find Google Ad iframe
+            const frames = page.frames();
+            let adFrame = null;
+            for (const f of frames) {
+                if (f.url().includes('googleads') && f.name().includes('ad_iframe')) {
+                    adFrame = f;
+                    break;
+                }
+            }
+
+            if (adFrame) {
+                // 8% organic chance to click the ad (helps with CTR and looks highly real)
+                const shouldClickAd = Math.random() < 0.08; 
+                
+                if (shouldClickAd) {
+                    console.log('🖱️ Clicking Google Vignette ad organically...');
+                    const adLink = adFrame.locator('a, canvas, #ad_canvas, .creative').first();
+                    if (await adLink.isVisible().catch(() => false)) {
+                        const popupPromise = page.context().waitForEvent('page', { timeout: 10000 }).catch(() => null);
+                        await adLink.click({ force: true }).catch(() => {});
+                        
+                        const popup = await popupPromise;
+                        if (popup) {
+                            console.log(`🔗 Opened advertiser page: ${popup.url()}`);
+                            // Wait on advertiser page for 15-30 seconds to simulate real human visit
+                            await popup.waitForLoadState('domcontentloaded').catch(() => {});
+                            await popup.waitForTimeout(15000 + Math.random() * 15000);
+                            await popup.close().catch(() => {});
+                            console.log('❌ Closed advertiser page.');
+                        }
+                        return;
+                    }
+                }
+
+                // Close the vignette naturally
+                const closeBtn = adFrame.locator('#dismiss-button, [aria-label="Close ad"]').first();
+                if (await closeBtn.isVisible().catch(() => false)) {
+                    console.log('❌ Closing Google Vignette ad.');
+                    await closeBtn.click().catch(() => {});
+                    await page.waitForTimeout(2000);
+                } else {
+                    // Fallback to escape key
+                    console.log('⌨️ Dismissing vignette via Escape key.');
+                    await page.keyboard.press('Escape');
+                    await page.waitForTimeout(2000);
+                }
+            } else {
+                await page.keyboard.press('Escape');
+            }
+        }
+    } catch (e) {
+        console.error('⚠️ Error handling vignette:', e.message);
+    }
+}
+
 async function clearOverlays(page) {
     try {
+        // Handle Google Vignette interstitial ads
+        await handleGoogleVignette(page);
+
         const selectors = [
             'button:has-text("Consent")',
             'button:has-text("Accept")',
