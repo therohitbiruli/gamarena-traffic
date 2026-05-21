@@ -43,7 +43,14 @@ async function runSession(index) {
         browser = await chromium.launch({
             headless: isHeadless, // Default to headful (false) to bypass Cloudflare. Use XVFB on Linux.
             proxy: { server: localProxy },
-            args: ['--disable-blink-features=AutomationControlled']
+            args: [
+                '--disable-blink-features=AutomationControlled',
+                '--disable-gpu',
+                '--mute-audio',
+                '--disable-dev-shm-usage',
+                '--js-flags="--max-old-space-size=256"',
+                '--disable-software-rasterizer'
+            ]
         });
 
         const context = await browser.newContext({
