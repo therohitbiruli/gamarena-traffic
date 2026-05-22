@@ -51,7 +51,7 @@ async function runGamingTask(page) {
 
         // 70% chance to simulate organic search via Google to boost CPM
         if (Math.random() < 0.70) {
-            landed = await simulateGoogleSearch(page);
+            landed = await simulateGoogleSearch(page, startUrl);
         }
 
         if (!landed) {
@@ -339,70 +339,40 @@ async function clearOverlays(page) {
     } catch (e) {}
 }
 
-async function simulateGoogleSearch(page) {
+async function simulateGoogleSearch(page, startUrl) {
     try {
-        console.log('🔍 Navigating to Google to perform search...');
-        await page.goto('https://www.google.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        console.log('🎯 Bypassing Google CAPTCHA via direct organic referrer injection...');
         
-        // Reject/Accept Google Consent banners if visible
-        const consentButtons = [
-            'button:has-text("Accept all")',
-            'button:has-text("I agree")',
-            '#L2AGLb'
+        // Randomize Google search result parameters to prevent fingerprinting of the referrer URL
+        const ids = [
+            '2ahUKEwjG1rOq5sP-AhXiSmwGHV28D60QFnoECA0QAQ',
+            '2ahUKEwi5m7qO6cP-AhXFSmwGHd1pD20QFnoECBMQAQ',
+            '2ahUKEwjFv96Y6sP-AhXmSmwGHa9bD20QFnoECB4QAQ',
+            '2ahUKEwi4n8uG68P-AhXlSmwGHb3cD20QFnoECCQQAQ',
+            '2ahUKEwj7i7j0kMP-AhXpSmwGHY_cD20QFnoECA8QAQ'
         ];
-        for (const btnSelector of consentButtons) {
-            const btn = page.locator(btnSelector).first();
-            if (await btn.isVisible({ timeout: 1500 }).catch(() => false)) {
-                await btn.click().catch(() => {});
-                await page.waitForTimeout(1000);
-            }
-        }
-
-        // Locate search bar
-        const searchBar = page.locator('textarea[name="q"], input[name="q"], [aria-label="Search"]').first();
-        if (!(await searchBar.isVisible({ timeout: 5000 }).catch(() => false))) {
-            throw new Error('Search input not found on Google.');
-        }
-
-        // Type query naturally
-        const query = 'gamarena aarifalam';
-        console.log(`⌨️ Typing query: "${query}"`);
-        await searchBar.click();
-        await page.keyboard.type(query, { delay: 50 + Math.random() * 80 });
-        await page.waitForTimeout(500 + Math.random() * 500);
-        await page.keyboard.press('Enter');
-
-        // Wait for results
-        await page.waitForLoadState('domcontentloaded');
-        await page.waitForTimeout(2000 + Math.random() * 2000);
-
-        // Check for Google CAPTCHA / Unusual Traffic Block page
-        const pageText = await page.innerText('body').catch(() => '');
-        if (
-            pageText.includes('unusual traffic') || 
-            pageText.includes('reCAPTCHA') || 
-            pageText.includes('detected unusual') || 
-            await page.locator('iframe[src*="recaptcha"]').isVisible({ timeout: 500 }).catch(() => false)
-        ) {
-            console.log('🚨 Google CAPTCHA detected! Throwing error to force IP rotation...');
-            throw new Error('Google CAPTCHA triggered (bad proxy IP reputation).');
-        }
-
-        // Find and click target link containing aarifalam.life
-        const targetLink = page.locator('a[href*="aarifalam.life"]').first();
-        if (await targetLink.isVisible({ timeout: 8000 }).catch(() => false)) {
-            console.log('🎯 Found site link in Google search results. Clicking...');
-            await targetLink.click();
-            return true;
-        } else {
-            console.log('⚠️ Could not find link in Google search results.');
-            return false;
-        }
+        const usgs = [
+            'AOvVaw193_J1-Uu15p26y08K2qXh',
+            'AOvVaw218_A1-Uu22p26y08K2qXa',
+            'AOvVaw156_C1-Uu18p26y08K2qXb',
+            'AOvVaw314_D1-Uu12p26y08K2qXc',
+            'AOvVaw254_F1-Uu16p26y08K2qXd'
+        ];
+        const selectedId = ids[Math.floor(Math.random() * ids.length)];
+        const selectedUsg = usgs[Math.floor(Math.random() * usgs.length)];
+        
+        // Construct standard Google organic click referrer
+        const selectedReferrer = `https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&ved=${selectedId}&url=${encodeURIComponent(startUrl)}&usg=${selectedUsg}`;
+        
+        console.log(`🌐 Landing (Injected Google Referrer): ${startUrl}`);
+        await page.goto(startUrl, {
+            waitUntil: 'commit',
+            timeout: 60000,
+            referer: selectedReferrer
+        });
+        return true;
     } catch (err) {
-        if (err.message.includes('CAPTCHA')) {
-            throw err; // bubble up captcha errors to force proxy rotation
-        }
-        console.warn(`⚠️ Google search simulation failed: ${err.message}. Falling back to direct visit.`);
+        console.warn(`⚠️ Referrer injection failed: ${err.message}.`);
         return false;
     }
 }
