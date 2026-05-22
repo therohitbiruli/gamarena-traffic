@@ -177,7 +177,7 @@ async function runGamingTask(page) {
 
     } catch (err) {
         console.error('❌ Task Error:', err.message);
-        throw err; // Rethrow to trigger retries in runner
+        throw err;
     }
 }
 
@@ -190,21 +190,60 @@ async function handleGoogleVignette(page) {
             const waitBeforeAction = 4000 + Math.random() * 5000;
             await page.waitForTimeout(waitBeforeAction);
 
-            // Find Google Ad iframe
+            const closeBtnSelectors = [
+                '#dismiss-button',
+                '[aria-label="Close ad"]',
+                'div[role="button"]:has-text("Close")',
+                'span:has-text("Close")',
+                'button:has-text("Close")',
+                'text=Close',
+                '.dismiss-button',
+                '#dismiss'
+            ];
+
+            // Scan all frames for one containing a close button
             const frames = page.frames();
             let adFrame = null;
+            let foundCloseBtn = null;
+
             for (const f of frames) {
-                if (f.url().includes('googleads') && f.name().includes('ad_iframe')) {
-                    adFrame = f;
-                    break;
+                const url = f.url() || '';
+                const name = f.name() || '';
+                if (url.includes('googleads') || name.includes('ad_iframe') || name.includes('google_ads_iframe') || name.includes('aswift')) {
+                    for (const sel of closeBtnSelectors) {
+                        try {
+                            const btn = f.locator(sel).first();
+                            if (await btn.isVisible({ timeout: 200 }).catch(() => false)) {
+                                adFrame = f;
+                                foundCloseBtn = btn;
+                                console.log(`🎯 Found close button inside ad frame using: "${sel}"`);
+                                break;
+                            }
+                        } catch (err) {}
+                    }
+                }
+                if (adFrame) break;
+            }
+
+            // If we didn't find the frame through the normal scan, check the main page as a fallback
+            if (!foundCloseBtn) {
+                for (const sel of closeBtnSelectors) {
+                    try {
+                        const btn = page.locator(sel).first();
+                        if (await btn.isVisible({ timeout: 200 }).catch(() => false)) {
+                            foundCloseBtn = btn;
+                            console.log(`🎯 Found close button on main page using: "${sel}"`);
+                            break;
+                        }
+                    } catch (err) {}
                 }
             }
 
-            if (adFrame) {
+            if (foundCloseBtn) {
                 // 8% organic chance to click the ad (helps with CTR and looks highly real)
                 const shouldClickAd = Math.random() < 0.08; 
                 
-                if (shouldClickAd) {
+                if (shouldClickAd && adFrame) {
                     console.log('🖱️ Clicking Google Vignette ad organically...');
                     const adLink = adFrame.locator('a, canvas, #ad_canvas, .creative').first();
                     if (await adLink.isVisible().catch(() => false)) {
@@ -224,20 +263,16 @@ async function handleGoogleVignette(page) {
                     }
                 }
 
-                // Close the vignette naturally
-                const closeBtn = adFrame.locator('#dismiss-button, [aria-label="Close ad"]').first();
-                if (await closeBtn.isVisible().catch(() => false)) {
-                    console.log('❌ Closing Google Vignette ad.');
-                    await closeBtn.click().catch(() => {});
-                    await page.waitForTimeout(2000);
-                } else {
-                    // Fallback to escape key
-                    console.log('⌨️ Dismissing vignette via Escape key.');
-                    await page.keyboard.press('Escape');
-                    await page.waitForTimeout(2000);
-                }
+                console.log('❌ Clicking close button to dismiss Vignette.');
+                await foundCloseBtn.click({ force: true }).catch(() => {});
+                await page.waitForTimeout(2000);
             } else {
+                // Ultimate Fallback: Press Escape key twice
+                console.log('⌨️ Close button not found. Pressing Escape key to dismiss Vignette...');
                 await page.keyboard.press('Escape');
+                await page.waitForTimeout(1000);
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(2000);
             }
         }
     } catch (e) {
