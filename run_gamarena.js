@@ -102,8 +102,8 @@ async function runSession(index) {
 
         const context = await browser.newContext(contextOptions);
 
-        // Block fonts to save bandwidth
-        await context.route('**/*.{woff,woff2,ttf,otf}', r => r.abort());
+        // Block fonts, images, and heavy media/game files to save bandwidth
+        await context.route('**/*.{woff,woff2,ttf,otf,png,jpg,jpeg,gif,webp,svg,mp4,webm,mp3,wav,ogg,wasm}', r => r.abort());
 
         await context.addInitScript(() => {
             Object.defineProperty(navigator, 'webdriver', { get: () => undefined });

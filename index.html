@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G-Bulk | Dolphin Edition</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="logo-group">
+            <h1>G-BULK 🐬</h1>
+            <p>DOLPHIN{ANTY} AUTOMATION</p>
+        </div>
+        <div class="master-controls">
+            <button onclick="resetAll()">Master Reset</button>
+        </div>
+    </header>
+
+    <main class="worker-grid" id="workerGrid">
+        <!-- Workers 1-5 will be injected here -->
+        <div id="inventorySection" class="inventory-section">
+            <div class="inventory-header">
+                <h2>📦 Account Inventory</h2>
+                <button class="btn btn-primary" onclick="exportCSV()">Export CSV</button>
+            </div>
+            <div class="inventory-container">
+                <table id="inventoryTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Email</th>
+                            <th>Password</th>
+                            <th>Profile</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryBody">
+                        <!-- Accounts will appear here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

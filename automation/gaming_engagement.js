@@ -72,7 +72,7 @@ async function runGamingTask(page) {
 
         // --- PHASE 2: NATURAL SCROLLING ---
         console.log('📜 Scrolling...');
-        const scrolls = persona === 'hardcore' ? 10 : (persona === 'explorer' ? 6 : 3);
+        const scrolls = persona === 'hardcore' ? 5 : (persona === 'explorer' ? 4 : 2);
         for (let i = 0; i < scrolls; i++) {
             // Smooth scroll with random distance
             await page.mouse.wheel(0, 200 + Math.random() * 400);
@@ -89,7 +89,7 @@ async function runGamingTask(page) {
         }
 
         // --- PHASE 3: CLICK INTO GAMES ---
-        const gameCount = persona === 'hardcore' ? 5 : (persona === 'gamer' ? 3 : 2);
+        const gameCount = 3; // Ensure exactly 3 games are visited
         console.log(`🎮 Will visit ${gameCount} games...`);
 
         for (let g = 0; g < gameCount; g++) {
@@ -125,27 +125,35 @@ async function runGamingTask(page) {
                 await clearOverlays(page);
 
                 // --- NEW HUMAN SCROLLING/READING LOOP ---
-                console.log('📖 Scroll down to read instructions/details...');
-                // Scroll down 600-800 pixels
-                await page.mouse.wheel(0, 600 + Math.random() * 200);
-                await page.waitForTimeout(3000 + Math.random() * 3000); // Read for 3-6s
+                console.log('📖 Scroll down to read instructions/details and view ads...');
+                // First scroll to start reading
+                await page.mouse.wheel(0, 500 + Math.random() * 300);
+                await page.waitForTimeout(2000 + Math.random() * 2000);
                 
                 // Human-like reading mouse paths
                 await page.mouse.move(100 + Math.random() * 400, 400 + Math.random() * 300, { steps: 8 });
+                await page.waitForTimeout(1500 + Math.random() * 1500);
+
+                // Second scroll further down to read the full "how to play" and trigger lower ads
+                console.log('📖 Scrolling further down...');
+                await page.mouse.wheel(0, 600 + Math.random() * 400);
+                await page.waitForTimeout(3000 + Math.random() * 3000); // Spend time reading
+                
+                await page.mouse.move(200 + Math.random() * 500, 300 + Math.random() * 400, { steps: 6 });
                 await page.waitForTimeout(2000 + Math.random() * 2000);
 
                 console.log('🎮 Scroll back up to align and play game...');
-                // Scroll back up to the game iframe
-                await page.mouse.wheel(0, -900);
+                // Scroll back up to the game iframe (adjust distance for two scrolls)
+                await page.mouse.wheel(0, -1500 - Math.random() * 500);
                 await page.waitForTimeout(2000);
                 await clearOverlays(page);
 
                 // "Play" the game — simulate interaction
                 let playTime;
                 if (persona === 'hardcore') {
-                    playTime = (100 + Math.random() * 80) * 1000; // 1.6 to 3 min per game
+                    playTime = (45 + Math.random() * 30) * 1000; // 45 to 75 seconds per game
                 } else {
-                    playTime = (60 + Math.random() * 90) * 1000;  // 1 to 2.5 min per game
+                    playTime = (30 + Math.random() * 30) * 1000;  // 30 to 60 seconds per game
                 }
                 console.log(`⏱️ Playing for ${Math.round(playTime / 1000)}s...`);
 
@@ -193,20 +201,9 @@ async function runGamingTask(page) {
             }
         }
 
-        // --- PHASE 4: BROWSE CONTENT (explorer & hardcore users do this) ---
-        if ((persona === 'explorer' || persona === 'hardcore') && Math.random() > 0.3) {
-            const contentPage = PAGES.content[Math.floor(Math.random() * PAGES.content.length)];
-            console.log(`📖 Reading: ${contentPage}`);
-            await page.goto(contentPage, { waitUntil: 'commit', timeout: 60000 });
-            await page.waitForTimeout(3000);
-
-            // Scroll through content
-            const readScrolls = persona === 'hardcore' ? 8 : 4;
-            for (let i = 0; i < readScrolls; i++) {
-                await page.mouse.wheel(0, 300 + Math.random() * 300);
-                await page.waitForTimeout(2000 + Math.random() * 3000);
-            }
-        }
+        // --- PHASE 4: BROWSE CONTENT ---
+        // Skipped: Exit immediately after playing games as requested
+        console.log('🚪 Exiting session after playing 3 games.');
 
         console.log('✅ Session complete!');
 
