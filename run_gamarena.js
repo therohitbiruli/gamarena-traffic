@@ -79,10 +79,27 @@ async function runSession(index) {
 
         // Verify IP
         try {
-            await page.goto('https://api.ipify.org?format=json', { timeout: 10000 });
-            const body = await page.innerText('body');
-            const ip = JSON.parse(body).ip;
-            console.log(`   ✅ IP: ${ip}`);
+            let ip = null;
+            try {
+                await page.goto('https://api.ipify.org?format=json', { timeout: 8000 });
+                const body = await page.innerText('body');
+                ip = JSON.parse(body).ip;
+            } catch (err) {
+                try {
+                    await page.goto('https://ipinfo.io/json', { timeout: 8000 });
+                    const body = await page.innerText('body');
+                    ip = JSON.parse(body).ip;
+                } catch (err2) {
+                    await page.goto('https://httpbin.org/ip', { timeout: 8000 });
+                    const body = await page.innerText('body');
+                    ip = JSON.parse(body).origin.split(',')[0].trim();
+                }
+            }
+            if (ip) {
+                console.log(`   ✅ IP: ${ip}`);
+            } else {
+                console.log(`   ⚠️ IP check skipped`);
+            }
         } catch(e) {
             console.log(`   ⚠️ IP check skipped`);
         }
