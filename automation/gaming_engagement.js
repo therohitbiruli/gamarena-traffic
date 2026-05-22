@@ -365,7 +365,7 @@ async function simulateGoogleSearch(page) {
         }
 
         // Type query naturally
-        const query = 'GAMARENA | Play 1000+ Free Browser Games - No Login';
+        const query = 'gamarena aarifalam';
         console.log(`⌨️ Typing query: "${query}"`);
         await searchBar.click();
         await page.keyboard.type(query, { delay: 50 + Math.random() * 80 });
