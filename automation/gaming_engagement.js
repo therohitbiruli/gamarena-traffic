@@ -47,16 +47,24 @@ async function runGamingTask(page) {
 
         // --- PHASE 1: LANDING ---
         const startUrl = PAGES.landing[Math.floor(Math.random() * PAGES.landing.length)];
-        console.log(`🌐 Landing: ${startUrl}`);
-        await page.goto(startUrl, { 
-            waitUntil: 'commit', 
-            timeout: 60000,
-            referer: referrer || undefined
-        });
-        // Wait for full page load after commit
-        await page.waitForLoadState('domcontentloaded').catch(() => {});
+        let landed = false;
+
+        // 70% chance to simulate organic search via Google to boost CPM
+        if (Math.random() < 0.70) {
+            landed = await simulateGoogleSearch(page);
+        }
+
+        if (!landed) {
+            console.log(`🌐 Landing (Direct/Referrer fallback): ${startUrl}`);
+            await page.goto(startUrl, { 
+                waitUntil: 'commit', 
+                timeout: 60000,
+                referer: referrer || undefined
+            });
+        }
         
-        // Wait for page to render + ads to load
+        // Wait for full page load
+        await page.waitForLoadState('domcontentloaded').catch(() => {});
         await page.waitForTimeout(3000 + Math.random() * 2000);
 
         // Handle overlays/consent
@@ -302,6 +310,59 @@ async function clearOverlays(page) {
             }
         }
     } catch (e) {}
+}
+
+async function simulateGoogleSearch(page) {
+    try {
+        console.log('🔍 Navigating to Google to perform search...');
+        await page.goto('https://www.google.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        
+        // Reject/Accept Google Consent banners if visible
+        const consentButtons = [
+            'button:has-text("Accept all")',
+            'button:has-text("I agree")',
+            '#L2AGLb'
+        ];
+        for (const btnSelector of consentButtons) {
+            const btn = page.locator(btnSelector).first();
+            if (await btn.isVisible({ timeout: 1500 }).catch(() => false)) {
+                await btn.click().catch(() => {});
+                await page.waitForTimeout(1000);
+            }
+        }
+
+        // Locate search bar
+        const searchBar = page.locator('textarea[name="q"], input[name="q"], [aria-label="Search"]').first();
+        if (!(await searchBar.isVisible({ timeout: 5000 }).catch(() => false))) {
+            throw new Error('Search input not found on Google.');
+        }
+
+        // Type query naturally
+        const query = 'GAMARENA | Play 1000+ Free Browser Games - No Login';
+        console.log(`⌨️ Typing query: "${query}"`);
+        await searchBar.click();
+        await page.keyboard.type(query, { delay: 50 + Math.random() * 80 });
+        await page.waitForTimeout(500 + Math.random() * 500);
+        await page.keyboard.press('Enter');
+
+        // Wait for results
+        await page.waitForLoadState('domcontentloaded');
+        await page.waitForTimeout(2000 + Math.random() * 2000);
+
+        // Find and click target link containing aarifalam.life
+        const targetLink = page.locator('a[href*="aarifalam.life"]').first();
+        if (await targetLink.isVisible({ timeout: 8000 }).catch(() => false)) {
+            console.log('🎯 Found site link in Google search results. Clicking...');
+            await targetLink.click();
+            return true;
+        } else {
+            console.log('⚠️ Could not find link in Google search results.');
+            return false;
+        }
+    } catch (err) {
+        console.warn(`⚠️ Google search simulation failed: ${err.message}. Falling back to direct visit.`);
+        return false;
+    }
 }
 
 module.exports = { runGamingTask };
