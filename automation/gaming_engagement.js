@@ -124,6 +124,22 @@ async function runGamingTask(page) {
                 await page.waitForTimeout(3000);
                 await clearOverlays(page);
 
+                // --- NEW HUMAN SCROLLING/READING LOOP ---
+                console.log('📖 Scroll down to read instructions/details...');
+                // Scroll down 600-800 pixels
+                await page.mouse.wheel(0, 600 + Math.random() * 200);
+                await page.waitForTimeout(3000 + Math.random() * 3000); // Read for 3-6s
+                
+                // Human-like reading mouse paths
+                await page.mouse.move(100 + Math.random() * 400, 400 + Math.random() * 300, { steps: 8 });
+                await page.waitForTimeout(2000 + Math.random() * 2000);
+
+                console.log('🎮 Scroll back up to align and play game...');
+                // Scroll back up to the game iframe
+                await page.mouse.wheel(0, -900);
+                await page.waitForTimeout(2000);
+                await clearOverlays(page);
+
                 // "Play" the game — simulate interaction
                 let playTime;
                 if (persona === 'hardcore') {
@@ -134,6 +150,8 @@ async function runGamingTask(page) {
                 console.log(`⏱️ Playing for ${Math.round(playTime / 1000)}s...`);
 
                 const start = Date.now();
+                let lastScrollTime = Date.now();
+
                 while (Date.now() - start < playTime) {
                     // Mouse movements (simulates playing)
                     await page.mouse.move(
@@ -156,6 +174,15 @@ async function runGamingTask(page) {
                         await page.keyboard.press(keys[Math.floor(Math.random() * keys.length)]);
                     }
 
+                    // Occasional mid-game scroll check (every 30-40 seconds)
+                    if (Date.now() - lastScrollTime > (30000 + Math.random() * 10000)) {
+                        console.log('📖 Mid-game scroll down to check details...');
+                        await page.mouse.wheel(0, 500);
+                        await page.waitForTimeout(3000 + Math.random() * 2000);
+                        await page.mouse.wheel(0, -500);
+                        await page.waitForTimeout(2000);
+                        lastScrollTime = Date.now();
+                    }
                     await page.waitForTimeout(8000 + Math.random() * 7000);
                     process.stdout.write('🎮 ');
                     await clearOverlays(page);
@@ -349,6 +376,18 @@ async function simulateGoogleSearch(page) {
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(2000 + Math.random() * 2000);
 
+        // Check for Google CAPTCHA / Unusual Traffic Block page
+        const pageText = await page.innerText('body').catch(() => '');
+        if (
+            pageText.includes('unusual traffic') || 
+            pageText.includes('reCAPTCHA') || 
+            pageText.includes('detected unusual') || 
+            await page.locator('iframe[src*="recaptcha"]').isVisible({ timeout: 500 }).catch(() => false)
+        ) {
+            console.log('🚨 Google CAPTCHA detected! Throwing error to force IP rotation...');
+            throw new Error('Google CAPTCHA triggered (bad proxy IP reputation).');
+        }
+
         // Find and click target link containing aarifalam.life
         const targetLink = page.locator('a[href*="aarifalam.life"]').first();
         if (await targetLink.isVisible({ timeout: 8000 }).catch(() => false)) {
@@ -360,6 +399,9 @@ async function simulateGoogleSearch(page) {
             return false;
         }
     } catch (err) {
+        if (err.message.includes('CAPTCHA')) {
+            throw err; // bubble up captcha errors to force proxy rotation
+        }
         console.warn(`⚠️ Google search simulation failed: ${err.message}. Falling back to direct visit.`);
         return false;
     }
