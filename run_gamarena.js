@@ -43,6 +43,19 @@ async function runSession(index) {
     try {
         const isHeadless = process.env.HEADLESS === 'true';
 
+        // Switch virtual workspace dynamically to distribute browser windows
+        if (!isHeadless) {
+            try {
+                const { exec } = require('child_process');
+                const workspaceIndex = index % 4; // Distribute across 4 workspaces (0 to 3)
+                exec(`wmctrl -s ${workspaceIndex} || xdotool set_desktop ${workspaceIndex}`, () => {});
+                // Short wait to ensure active workspace transition before window is mapped
+                await new Promise(r => setTimeout(r, 800));
+            } catch (e) {
+                // Ignore if tools are missing
+            }
+        }
+
         browser = await chromium.launch({
             headless: isHeadless, // Default to headful (false) to bypass Cloudflare. Use XVFB on Linux.
             proxy: { server: localProxy },
