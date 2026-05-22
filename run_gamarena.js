@@ -69,16 +69,21 @@ async function runSession(index) {
             ]
         });
 
-        const context = await browser.newContext({
+        const contextOptions = {
             viewport: vp,
             userAgent: ua,
             locale: 'en-US',
-            timezoneId: 'America/Los_Angeles',
-            recordVideo: {
+            timezoneId: 'America/Los_Angeles'
+        };
+
+        if (process.env.RECORD_VIDEO === 'true') {
+            contextOptions.recordVideo = {
                 dir: 'videos/',
                 size: vp
-            }
-        });
+            };
+        }
+
+        const context = await browser.newContext(contextOptions);
 
         // Block fonts to save bandwidth
         await context.route('**/*.{woff,woff2,ttf,otf}', r => r.abort());
