@@ -6,6 +6,9 @@ const ProxyChain = require('proxy-chain');
 const { runGamingTask } = require('./automation/gaming_engagement');
 require('dotenv').config();
 
+// Global queue to synchronize browser launches and prevent workspace race conditions
+let launchQueue = Promise.resolve();
+
 // US Desktop User Agents (high CPM)
 const DESKTOP_UAS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
@@ -42,31 +45,45 @@ async function runSession(index) {
     let browser = null;
     try {
         const isHeadless = process.env.HEADLESS === 'true';
+        // Acquire launch lock to sequentially switch workspace and map the window to X11
+        browser = await new Promise((resolveLaunch, rejectLaunch) => {
+            launchQueue = launchQueue.then(async () => {
+                try {
+                    // Switch virtual workspace dynamically to distribute browser windows
+                    if (!isHeadless) {
+                        try {
+                            const { exec } = require('child_process');
+                            const workspaceIndex = index % 4; // Distribute across 4 workspaces (0 to 3)
+                            exec(`wmctrl -s ${workspaceIndex} || xdotool set_desktop ${workspaceIndex}`, () => {});
+                            // Short wait to ensure active workspace transition before window is mapped
+                            await new Promise(r => setTimeout(r, 1000));
+                        } catch (e) {
+                            // Ignore if tools are missing
+                        }
+                    }
 
-        // Switch virtual workspace dynamically to distribute browser windows
-        if (!isHeadless) {
-            try {
-                const { exec } = require('child_process');
-                const workspaceIndex = index % 4; // Distribute across 4 workspaces (0 to 3)
-                exec(`wmctrl -s ${workspaceIndex} || xdotool set_desktop ${workspaceIndex}`, () => {});
-                // Short wait to ensure active workspace transition before window is mapped
-                await new Promise(r => setTimeout(r, 800));
-            } catch (e) {
-                // Ignore if tools are missing
-            }
-        }
+                    const bInstance = await chromium.launch({
+                        headless: isHeadless, // Default to headful (false) to bypass Cloudflare. Use XVFB on Linux.
+                        proxy: { server: localProxy },
+                        args: [
+                            '--disable-blink-features=AutomationControlled',
+                            '--disable-gpu',
+                            '--mute-audio',
+                            '--disable-dev-shm-usage',
+                            '--js-flags="--max-old-space-size=256"',
+                            '--disable-software-rasterizer'
+                        ]
+                    });
 
-        browser = await chromium.launch({
-            headless: isHeadless, // Default to headful (false) to bypass Cloudflare. Use XVFB on Linux.
-            proxy: { server: localProxy },
-            args: [
-                '--disable-blink-features=AutomationControlled',
-                '--disable-gpu',
-                '--mute-audio',
-                '--disable-dev-shm-usage',
-                '--js-flags="--max-old-space-size=256"',
-                '--disable-software-rasterizer'
-            ]
+                    // Let the window map completely to the workspace before releasing the lock for next launch
+                    await new Promise(r => setTimeout(r, 800));
+                    resolveLaunch(bInstance);
+                } catch (launchErr) {
+                    rejectLaunch(launchErr);
+                }
+            }).catch((err) => {
+                rejectLaunch(err);
+            });
         });
 
         const contextOptions = {
