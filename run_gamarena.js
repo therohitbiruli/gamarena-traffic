@@ -117,9 +117,9 @@ async function runSession(index) {
                 return route.abort();
             }
 
-            // Block all images EXCEPT Google Ads (This now blocks game thumbnails too)
+            // Block all images EXCEPT from your site and Google Ads
             if (type === 'image') {
-                if (url.includes('google') || url.includes('doubleclick')) {
+                if (url.includes('google') || url.includes('doubleclick') || url.includes('aarifalam.life')) {
                     return route.continue();
                 }
                 return route.abort();
