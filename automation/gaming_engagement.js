@@ -151,9 +151,9 @@ async function runGamingTask(page) {
                 // "Play" the game — simulate interaction
                 let playTime;
                 if (persona === 'hardcore') {
-                    playTime = (45 + Math.random() * 30) * 1000; // 45 to 75 seconds per game
+                    playTime = (25 + Math.random() * 15) * 1000; // 25 to 40 seconds per game
                 } else {
-                    playTime = (30 + Math.random() * 30) * 1000;  // 30 to 60 seconds per game
+                    playTime = (15 + Math.random() * 15) * 1000;  // 15 to 30 seconds per game
                 }
                 console.log(`⏱️ Playing for ${Math.round(playTime / 1000)}s...`);
 
