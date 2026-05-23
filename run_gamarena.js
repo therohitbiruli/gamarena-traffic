@@ -71,7 +71,10 @@ async function runSession(index) {
                             '--mute-audio',
                             '--disable-dev-shm-usage',
                             '--js-flags="--max-old-space-size=256"',
-                            '--disable-software-rasterizer'
+                            '--disable-software-rasterizer',
+                            '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
+                            '--enforce-webrtc-ip-permission-check',
+                            '--disable-webrtc-multiple-routes'
                         ]
                     });
 
