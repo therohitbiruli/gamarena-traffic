@@ -102,8 +102,33 @@ async function runSession(index) {
 
         const context = await browser.newContext(contextOptions);
 
-        // Block fonts, images, and heavy media/game files to save bandwidth
-        await context.route('**/*.{woff,woff2,ttf,otf,png,jpg,jpeg,gif,webp,svg,mp4,webm,mp3,wav,ogg,wasm}', r => r.abort());
+        // Aggressive Bandwidth Saver: Block media, fonts, websockets, game engines, and 3rd-party images
+        await context.route('**/*', route => {
+            const req = route.request();
+            const type = req.resourceType();
+            const url = req.url().toLowerCase();
+
+            // Block heavy extensions and resource types
+            if (['media', 'font', 'websocket'].includes(type) || 
+                url.match(/\.(woff|woff2|ttf|otf|mp4|webm|mp3|wav|ogg|wasm|unityweb|data|pack|gz)$/i)) {
+                return route.abort();
+            }
+
+            // Block all images EXCEPT from your site and Google Ads
+            if (type === 'image') {
+                if (url.includes('google') || url.includes('doubleclick') || url.includes('aarifalam.life')) {
+                    return route.continue();
+                }
+                return route.abort();
+            }
+
+            // Block common third-party game distribution networks completely to save bandwidth
+            if (url.includes('gamedistribution.com') || url.includes('gamepix.com') || url.includes('crazygames.com')) {
+                return route.abort();
+            }
+
+            route.continue();
+        });
 
         await context.addInitScript(() => {
             Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
