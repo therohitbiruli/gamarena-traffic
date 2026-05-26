@@ -20,12 +20,7 @@ jobs:
       - name: Install Dependencies
         working-directory: ./fb_shorts_bot
         run: npm install
-      - name: Create Cookies File
-        working-directory: ./fb_shorts_bot
-        run: |
-          cat << 'EOF' > cookies.txt
-          ${{ secrets.YOUTUBE_COOKIES }}
-          EOF
+      
       - name: Run Automation Script
         working-directory: ./fb_shorts_bot
         env:
