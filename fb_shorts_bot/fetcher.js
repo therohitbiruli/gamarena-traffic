@@ -3,13 +3,22 @@ const fs = require('fs');
 const path = require('path');
 const db = require('./database');
 
+const cookiesPath = path.join(__dirname, 'cookies.txt');
+
 async function getNextVideoToProcess(channelUrl) {
     console.log(`🔍 Fetching videos from ${channelUrl}...`);
     try {
-        const output = await youtubedl(channelUrl, {
+        const options = {
             dumpSingleJson: true,
             flatPlaylist: true
-        });
+        };
+        
+        if (fs.existsSync(cookiesPath)) {
+            options.cookies = cookiesPath;
+            console.log('🍪 Using YouTube Cookies for authentication!');
+        }
+
+        const output = await youtubedl(channelUrl, options);
 
         if (!output || !output.entries || output.entries.length === 0) {
             console.log('❌ No videos found on the channel.');
@@ -39,11 +48,17 @@ async function getNextVideoToProcess(channelUrl) {
 async function downloadVideo(videoUrl, outputPath) {
     console.log(`⬇️ Downloading video from ${videoUrl}...`);
     try {
-        await youtubedl(videoUrl, {
+        const options = {
             output: `"${outputPath}"`,
             format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             noWarnings: true
-        });
+        };
+        
+        if (fs.existsSync(cookiesPath)) {
+            options.cookies = cookiesPath;
+        }
+
+        await youtubedl(videoUrl, options);
         
         if (fs.existsSync(outputPath)) {
             console.log('✅ Download complete!');
