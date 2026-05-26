@@ -2,7 +2,6 @@ name: Auto Post to Facebook
 
 on:
   schedule:
-    # Runs at 08:00, 14:00, and 20:00 UTC every day
     - cron: '0 8,14,20 * * *'
   workflow_dispatch: 
 
@@ -24,12 +23,15 @@ jobs:
       - name: Run Automation Script
         working-directory: ./fb_shorts_bot
         env:
-          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
-          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
-          YOUTUBE_CHANNEL_URL: ${{ secrets.YOUTUBE_CHANNEL_URL }}
+          FB_PAGE_ID_1: ${{ secrets.FB_PAGE_ID_1 }}
+          FB_PAGE_TOKEN_1: ${{ secrets.FB_PAGE_TOKEN_1 }}
+          YOUTUBE_CHANNEL_URL_1: ${{ secrets.YOUTUBE_CHANNEL_URL_1 }}
+          FB_PAGE_ID_2: ${{ secrets.FB_PAGE_ID_2 }}
+          FB_PAGE_TOKEN_2: ${{ secrets.FB_PAGE_TOKEN_2 }}
+          YOUTUBE_CHANNEL_URL_2: ${{ secrets.YOUTUBE_CHANNEL_URL_2 }}
         run: npm start
       - name: Commit and Push History
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: update fb_shorts_bot/history.json with newly posted video"
+          commit_message: "chore: update fb_shorts_bot/history.json with newly posted videos"
           file_pattern: fb_shorts_bot/history.json
