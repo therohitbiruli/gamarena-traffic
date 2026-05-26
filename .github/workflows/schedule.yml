@@ -1,0 +1,35 @@
+name: Auto Post to Facebook
+
+on:
+  schedule:
+    # Runs at 08:00, 14:00, and 20:00 UTC every day
+    - cron: '0 8,14,20 * * *'
+  workflow_dispatch: 
+
+jobs:
+  post-video:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Dependencies
+        working-directory: ./fb_shorts_bot
+        run: npm install
+      - name: Run Automation Script
+        working-directory: ./fb_shorts_bot
+        env:
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          YOUTUBE_CHANNEL_URL: ${{ secrets.YOUTUBE_CHANNEL_URL }}
+        run: npm start
+      - name: Commit and Push History
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update fb_shorts_bot/history.json with newly posted video"
+          file_pattern: fb_shorts_bot/history.json
