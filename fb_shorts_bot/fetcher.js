@@ -54,11 +54,11 @@ async function downloadVideo(videoUrl, outputPath) {
     let downloadLink = null;
 
     try {
-        // Attempt 1: youtube-video-download-info (T-Rubin)
-        console.log('📡 Requesting download link from Primary RapidAPI...');
-        const res1 = await axios.get('https://youtube-video-download-info.p.rapidapi.com/dl', {
-            params: { id: videoId },
-            headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'youtube-video-download-info.p.rapidapi.com' }
+        // Attempt 1: Cloud Api Hub - Youtube Downloader
+        console.log('📡 Requesting download link from Cloud Api Hub RapidAPI...');
+        const res1 = await axios.get('https://cloud-api-hub-youtube-downloader.p.rapidapi.com/download', {
+            params: { id: videoId, filter: 'audioandvideo' },
+            headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'cloud-api-hub-youtube-downloader.p.rapidapi.com' }
         });
         const jsonStr = JSON.stringify(res1.data);
         const urlMatch = jsonStr.match(/"(https:\/\/[^"]+googlevideo\.com\/videoplayback[^"]+)"/);
@@ -69,7 +69,7 @@ async function downloadVideo(videoUrl, outputPath) {
 
     if (!downloadLink) {
         try {
-            // Attempt 2: youtube-media-downloader (DataFanatic) - Endpoint the user might have subscribed to
+            // Attempt 2: fallback (youtube-media-downloader)
             console.log('📡 Trying Fallback RapidAPI (youtube-media-downloader)...');
             const res2 = await axios.get('https://youtube-media-downloader.p.rapidapi.com/v2/video/details', {
                 params: { videoId: videoId },
