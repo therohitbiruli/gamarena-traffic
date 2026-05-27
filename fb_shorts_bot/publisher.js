@@ -23,14 +23,15 @@ async function publishVideoToFacebook(pageId, pageToken, videoPath, title) {
         // Step 2: Upload the video binary
         console.log('📤 Step 2: Uploading video file...');
         const uploadUrl = `https://rupload.facebook.com/video-upload/v20.0/${videoId}`;
-        const fileSize = fs.statSync(videoPath).size;
-        const fileStream = fs.createReadStream(videoPath);
+        const fileBuffer = fs.readFileSync(videoPath);
+        const fileSize = fileBuffer.length;
 
-        await axios.post(uploadUrl, fileStream, {
+        await axios.post(uploadUrl, fileBuffer, {
             headers: {
                 'Authorization': `OAuth ${pageToken}`,
                 'offset': '0',
                 'file_size': fileSize.toString(),
+                'Content-Length': fileSize.toString(),
                 'Content-Type': 'application/octet-stream'
             },
             maxBodyLength: Infinity,
