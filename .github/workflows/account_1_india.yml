@@ -27,6 +27,8 @@ jobs:
           FB_PAGE_ID_1: ${{ secrets.FB_PAGE_ID }}
           FB_PAGE_TOKEN_1: ${{ secrets.FB_PAGE_TOKEN }}
           YOUTUBE_CHANNEL_URL_1: ${{ secrets.YOUTUBE_CHANNEL_URL }}
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+
         run: npm start
       - name: Commit and Push History
         uses: stefanzweifel/git-auto-commit-action@v5
