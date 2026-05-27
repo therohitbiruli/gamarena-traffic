@@ -12,10 +12,15 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@bochilteam/scraper": "^5.0.1",
+    "@distube/ytdl-core": "^4.16.12",
+    "@vreden/youtube_scraper": "^1.2.9",
     "axios": "^1.16.1",
     "dotenv": "^17.4.2",
     "form-data": "^4.0.5",
+    "m3u8-parser": "^7.2.0",
     "node-cron": "^4.2.1",
-    "youtube-dl-exec": "^3.1.7"
+    "youtube-dl-exec": "^3.1.7",
+    "youtube-ext": "^1.1.25"
   }
 }
