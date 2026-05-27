@@ -44,11 +44,14 @@ async function publishVideoToFacebook(pageId, pageToken, videoPath, title) {
         const publishResponse = await axios.post(initUrl, {
             upload_phase: 'finish',
             video_id: videoId,
+            video_state: 'PUBLISHED',
             access_token: pageToken,
             title: title,
             description: title + "\n\n#shorts #trending #viral",
             published: true
         });
+
+        console.log('📋 Publish response:', JSON.stringify(publishResponse.data));
 
         if (publishResponse.data && (publishResponse.data.success || publishResponse.data.id)) {
             console.log(`✅ Successfully published as Reel! Video ID: ${videoId}`);
