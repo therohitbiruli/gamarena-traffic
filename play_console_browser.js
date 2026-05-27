@@ -6,8 +6,12 @@ async function main() {
     console.log('🌍 Setting up San Diego Proxy Bridge...');
     console.log('');
 
-    // Create a local proxy that forwards to ProxyJet with auth
-    const proxyUrl = 'http://2605185frVI-resi_region-US_California_Sandiego-ip-397782420:DZwo3X4gAdIZYhW@ca.proxy-jet.io:1010';
+    require('dotenv').config();
+
+    // Create a totally unique ProxyJet rotating IP for the US
+    const sessionId = Math.random().toString(36).substring(2, 10);
+    const proxyUser = `${process.env.PROXY_USER}-resi_region-US_California-session-${sessionId}`;
+    const proxyUrl = `http://${proxyUser}:${process.env.PROXY_PASS}@${process.env.PROXY_HOST}:${process.env.PROXY_PORT}`;
     
     // This creates a local proxy on a random port that handles auth for us
     const localProxy = await ProxyChain.anonymizeProxy(proxyUrl);
@@ -41,13 +45,23 @@ async function main() {
     }
     console.log(`🔗 Chrome: ${chromePath}`);
 
-    // Launch REAL Chrome with clean profile + proxy (NO Playwright!)
-    const tempProfile = require('path').join(__dirname, 'tmp', 'chrome_sandiego');
+    // Launch REAL Chrome with unique, clean profile + proxy (NO Playwright!)
+    const profileName = `chrome_console_${Date.now()}`;
+    const tempProfile = require('path').join(__dirname, 'tmp', profileName);
     
+    // Some basic fingerprint fuzzing
+    const userAgents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+    ];
+    const randomUA = userAgents[Math.floor(Math.random() * userAgents.length)];
+
     const chromeArgs = [
         `"${chromePath}"`,
         `--proxy-server=${localProxy}`,
         `--user-data-dir="${tempProfile}"`,
+        `--user-agent="${randomUA}"`,
         '--no-first-run',
         '--no-default-browser-check',
         '--start-maximized',
@@ -62,11 +76,12 @@ async function main() {
     
     console.log('');
     console.log('═══════════════════════════════════════════════════');
-    console.log('  🎯 REAL CHROME LAUNCHED (No Playwright!)');
-    console.log('  📍 Location: San Diego, California, USA');
+    console.log('  🎯 UNIQUE CHROME DEVICE LAUNCHED');
+    console.log('  📍 Location: United States (Random IP)');
+    console.log(`  👤 Profile ID: ${profileName}`);
     console.log('');
-    console.log('  The browser opened with IP check page.');
-    console.log('  You should see your San Diego IP: 76.93.183.98');
+    console.log('  The browser opened with an IP check page.');
+    console.log('  You should see a completely fresh, unique IP.');
     console.log('');
     console.log('  👉 Now navigate to:');
     console.log('     https://accounts.google.com');

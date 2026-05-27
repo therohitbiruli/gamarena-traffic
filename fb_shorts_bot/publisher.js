@@ -5,33 +5,84 @@ const FormData = require('form-data');
 async function publishVideoToFacebook(pageId, pageToken, videoPath, title) {
     console.log(`🚀 Uploading video "${title}" to Facebook Page...`);
     
-    // Facebook Graph API Video Upload Endpoint
-    const url = `https://graph.facebook.com/v20.0/${pageId}/videos`;
+    // Try Reels endpoint first, fall back to regular /videos
+    let success = false;
 
+    // === Attempt 1: Publish as a Reel ===
     try {
+        console.log('📤 Step 1: Initializing Reel upload...');
+        const initUrl = `https://graph.facebook.com/v20.0/${pageId}/video_reels`;
+        const initResponse = await axios.post(initUrl, {
+            upload_phase: 'start',
+            access_token: pageToken
+        });
+
+        const videoId = initResponse.data.video_id;
+        console.log(`📋 Got video ID: ${videoId}`);
+
+        // Step 2: Upload the video binary
+        console.log('📤 Step 2: Uploading video file...');
+        const uploadUrl = `https://rupload.facebook.com/video-upload/v20.0/${videoId}`;
+        const fileSize = fs.statSync(videoPath).size;
+        const fileStream = fs.createReadStream(videoPath);
+
+        await axios.post(uploadUrl, fileStream, {
+            headers: {
+                'Authorization': `OAuth ${pageToken}`,
+                'offset': '0',
+                'file_size': fileSize.toString(),
+                'Content-Type': 'application/octet-stream'
+            },
+            maxBodyLength: Infinity,
+            maxContentLength: Infinity,
+            timeout: 120000
+        });
+
+        // Step 3: Finish and publish
+        console.log('📤 Step 3: Publishing Reel...');
+        const publishResponse = await axios.post(initUrl, {
+            upload_phase: 'finish',
+            video_id: videoId,
+            access_token: pageToken,
+            title: title,
+            description: title + "\n\n#shorts #trending #viral",
+            published: true
+        });
+
+        if (publishResponse.data && (publishResponse.data.success || publishResponse.data.id)) {
+            console.log(`✅ Successfully published as Reel! Video ID: ${videoId}`);
+            return true;
+        }
+    } catch (reelError) {
+        console.log('⚠️ Reel upload failed, falling back to regular video upload...');
+        console.log('   Reason:', reelError.response ? JSON.stringify(reelError.response.data) : reelError.message);
+    }
+
+    // === Attempt 2: Fallback to regular /videos endpoint ===
+    try {
+        const url = `https://graph.facebook.com/v20.0/${pageId}/videos`;
         const form = new FormData();
         form.append('access_token', pageToken);
-        form.append('description', title + "\n\n#shorts #trending #viral"); 
+        form.append('description', title + "\n\n#shorts #trending #viral");
+        form.append('published', 'true');
         form.append('source', fs.createReadStream(videoPath));
 
         const response = await axios.post(url, form, {
             headers: {
                 ...form.getHeaders()
             },
-            // Uploads can take a bit, increase timeout
             maxBodyLength: Infinity,
             maxContentLength: Infinity,
-            timeout: 60000 
+            timeout: 120000
         });
 
         if (response.data && response.data.id) {
-            console.log(`✅ Successfully published! Facebook Video ID: ${response.data.id}`);
+            console.log(`✅ Successfully published as Video! Facebook Video ID: ${response.data.id}`);
             return true;
         } else {
             console.error('❌ Failed to publish, no ID returned:', response.data);
             return false;
         }
-
     } catch (error) {
         console.error('❌ Error publishing to Facebook:');
         if (error.response && error.response.data) {
