@@ -50,19 +50,32 @@ async function downloadVideo(videoUrl, outputPath) {
     const axios = require('axios');
     const videoId = videoUrl.split('v=')[1] || videoUrl.split('/').pop();
     
-    const apiKey = process.env.RAPIDAPI_KEY || '20e388f737msh77002f578d86abp1c58abjsn488181a65fd2';
+    const apiKey = process.env.RAPIDAPI_KEY || '20e388f737msh778002f578d86abp1c58abjsn488181a65fd2';
     let downloadLink = null;
 
     try {
         // Attempt 1: Cloud Api Hub - Youtube Downloader
         console.log('📡 Requesting download link from Cloud Api Hub RapidAPI...');
         const res1 = await axios.get('https://cloud-api-hub-youtube-downloader.p.rapidapi.com/download', {
-            params: { id: videoId, filter: 'audioandvideo' },
+            params: { id: videoId, filter: 'audioandvideo', quality: 'lowest' },
             headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'cloud-api-hub-youtube-downloader.p.rapidapi.com' }
         });
-        const jsonStr = JSON.stringify(res1.data);
-        const urlMatch = jsonStr.match(/"(https:\/\/[^"]+googlevideo\.com\/videoplayback[^"]+)"/);
-        if (urlMatch) downloadLink = urlMatch[1];
+        
+        // Response can be a single object with .url or an array of formats
+        const data = res1.data;
+        if (data && data.url) {
+            downloadLink = data.url;
+        } else if (Array.isArray(data) && data.length > 0) {
+            // Pick first entry that has both audio and video
+            const pick = data.find(f => f.acodec !== 'none' && f.vcodec !== 'none') || data[0];
+            if (pick && pick.url) downloadLink = pick.url;
+        }
+        if (!downloadLink) {
+            // Regex fallback
+            const jsonStr = JSON.stringify(data);
+            const urlMatch = jsonStr.match(/"(https:\/\/[^"]+googlevideo\.com\/videoplayback[^"]+)"/);
+            if (urlMatch) downloadLink = urlMatch[1];
+        }
     } catch (err) {
         console.log('⚠️ Primary RapidAPI failed:', err.response ? JSON.stringify(err.response.data) : err.message);
     }
