@@ -82,38 +82,15 @@ async function downloadVideo(videoUrl, outputPath) {
 
     if (!downloadLink) {
         try {
-            // Attempt 2: YouTube Video FAST Downloader 24/7 (100 req/month free)
-            console.log('📡 Trying YouTube Video FAST Downloader 24/7...');
-            const res2 = await axios.get('https://youtube-video-fast-downloader-24-7.p.rapidapi.com/download_short', {
-                params: { url: videoUrl },
-                headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'youtube-video-fast-downloader-24-7.p.rapidapi.com' }
-            });
-            const data2 = res2.data;
-            if (data2 && data2.url) {
-                downloadLink = data2.url;
-            } else if (data2 && data2.download_url) {
-                downloadLink = data2.download_url;
-            } else {
-                const jsonStr2 = JSON.stringify(data2);
-                const urlMatch2 = jsonStr2.match(/"(https:\/\/[^"]+(?:googlevideo\.com|\.mp4)[^"]+)"/);
-                if (urlMatch2) downloadLink = urlMatch2[1];
-            }
-        } catch (err) {
-            console.log('⚠️ FAST Downloader failed:', err.response ? JSON.stringify(err.response.data) : err.message);
-        }
-    }
-
-    if (!downloadLink) {
-        try {
-            // Attempt 3: fallback (youtube-media-downloader)
+            // Attempt 2: fallback (youtube-media-downloader)
             console.log('📡 Trying Fallback RapidAPI (youtube-media-downloader)...');
-            const res3 = await axios.get('https://youtube-media-downloader.p.rapidapi.com/v2/video/details', {
+            const res2 = await axios.get('https://youtube-media-downloader.p.rapidapi.com/v2/video/details', {
                 params: { videoId: videoId },
                 headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'youtube-media-downloader.p.rapidapi.com' }
             });
-            const jsonStr3 = JSON.stringify(res3.data);
-            const urlMatch3 = jsonStr3.match(/"(https:\/\/[^"]+googlevideo\.com\/videoplayback[^"]+)"/);
-            if (urlMatch3) downloadLink = urlMatch3[1];
+            const jsonStr2 = JSON.stringify(res2.data);
+            const urlMatch2 = jsonStr2.match(/"(https:\/\/[^"]+googlevideo\.com\/videoplayback[^"]+)"/);
+            if (urlMatch2) downloadLink = urlMatch2[1];
         } catch (err) {
             console.log('⚠️ Fallback RapidAPI failed:', err.response ? JSON.stringify(err.response.data) : err.message);
         }
