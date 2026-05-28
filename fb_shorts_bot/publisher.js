@@ -55,6 +55,19 @@ async function publishVideoToFacebook(pageId, pageToken, videoPath, title) {
 
         if (publishResponse.data && (publishResponse.data.success || publishResponse.data.id)) {
             console.log(`✅ Successfully published as Reel! Video ID: ${videoId}`);
+            
+            // Wait for processing and check status
+            console.log('⏳ Waiting 15s for Facebook processing before checking status...');
+            await new Promise(r => setTimeout(r, 15000));
+            try {
+                const statusRes = await axios.get(`https://graph.facebook.com/v20.0/${videoId}`, {
+                    params: { access_token: pageToken, fields: 'status,published,description,title' }
+                });
+                console.log('📊 Facebook Video Status:', JSON.stringify(statusRes.data, null, 2));
+            } catch (e) {
+                console.log('⚠️ Could not check video status:', e.response ? e.response.data : e.message);
+            }
+            
             return true;
         }
     } catch (reelError) {
