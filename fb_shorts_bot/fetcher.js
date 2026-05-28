@@ -46,85 +46,91 @@ async function getNextVideoToProcess(channelUrl) {
 }
 
 async function downloadVideo(videoUrl, outputPath) {
-    console.log(`⬇️ Downloading video from ${videoUrl} via RapidAPI...`);
+    console.log(`⬇️ Downloading video from ${videoUrl}...`);
+    
+    // Attempt 1: Use youtube-dl directly (Best Quality, Audio+Video, Free)
+    try {
+        console.log('📡 Attempting primary download via yt-dlp...');
+        const options = {
+            output: outputPath,
+            format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            extractorArgs: 'youtube:player_client=ios',
+            noWarnings: true
+        };
+        
+        if (fs.existsSync(cookiesPath)) {
+            options.cookies = cookiesPath;
+        }
+
+        await youtubedl(videoUrl, options);
+        
+        if (fs.existsSync(outputPath)) {
+            console.log('✅ Download complete via yt-dlp!');
+            return true;
+        }
+    } catch (err) {
+        console.log('⚠️ yt-dlp download failed, falling back to RapidAPI...', err.message.substring(0, 100));
+    }
+
+    // Attempt 2: RapidAPI Fallback
+    console.log('📡 Attempting fallback download via RapidAPI...');
     const axios = require('axios');
     const videoId = videoUrl.split('v=')[1] || videoUrl.split('/').pop();
-    
     const apiKey = process.env.RAPIDAPI_KEY || '20e388f737msh778002f578d86abp1c58abjsn488181a65fd2';
     let downloadLink = null;
 
     try {
-        // Attempt 1: Cloud Api Hub - Youtube Downloader
-        console.log('📡 Requesting download link from Cloud Api Hub RapidAPI...');
+        // Cloud Api Hub
+        console.log('📡 Requesting download link from Cloud Api Hub...');
         const res1 = await axios.get('https://cloud-api-hub-youtube-downloader.p.rapidapi.com/download', {
-            params: { id: videoId, filter: 'audioandvideo' },
+            params: { id: videoId },
             headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'cloud-api-hub-youtube-downloader.p.rapidapi.com' }
         });
         
         const data = res1.data;
-        if (data && data.url) {
-            // Single URL response (when filter works)
-            downloadLink = data.url;
-            console.log('✅ Got direct muxed URL from Cloud Api Hub');
-        } else if (Array.isArray(data) && data.length > 0) {
-            // Array of formats - pick one with BOTH audio and video (muxed)
-            console.log(`📋 Got ${data.length} formats, finding muxed (audio+video)...`);
-            const muxed = data.find(f => f.acodec && f.acodec !== 'none' && f.vcodec && f.vcodec !== 'none');
+        let formats = [];
+        if (Array.isArray(data)) formats = data;
+        else if (data && data.formats) formats = data.formats;
+        
+        if (formats.length > 0) {
+            // Find muxed format
+            const muxed = formats.find(f => f.acodec && f.acodec !== 'none' && f.vcodec && f.vcodec !== 'none');
             if (muxed && muxed.url) {
                 downloadLink = muxed.url;
-                console.log(`✅ Found muxed format: ${muxed.format_id || muxed.itag || '?'} (${muxed.ext || 'mp4'})`);
-            }
-        }
-        if (!downloadLink) {
-            const jsonStr = JSON.stringify(data);
-            const urlMatch = jsonStr.match(/"(https:\/\/[^"]+googlevideo\.com\/videoplayback[^"]+)"/);
-            if (urlMatch) {
-                downloadLink = urlMatch[1];
-                console.log('⚠️ Using regex fallback URL (may lack audio)');
+                console.log(`✅ Found muxed format from Cloud Api Hub`);
             }
         }
     } catch (err) {
-        console.log('⚠️ Primary RapidAPI failed:', err.response ? JSON.stringify(err.response.data) : err.message);
+        console.log('⚠️ Cloud Api Hub failed:', err.message);
     }
 
     if (!downloadLink) {
         try {
-            // Attempt 2: fallback (youtube-media-downloader)
+            // YouTube Media Downloader
             console.log('📡 Trying Fallback RapidAPI (youtube-media-downloader)...');
             const res2 = await axios.get('https://youtube-media-downloader.p.rapidapi.com/v2/video/details', {
                 params: { videoId: videoId },
                 headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'youtube-media-downloader.p.rapidapi.com' }
             });
             const d2 = res2.data;
-            // Pick the muxed format (has both audio+video) - usually 360p MP4
             if (d2.videos && d2.videos.items && d2.videos.items.length > 0) {
                 const muxed = d2.videos.items.find(v => v.hasAudio === true || v.hasAudio === undefined);
                 if (muxed && muxed.url) {
                     downloadLink = muxed.url;
-                    console.log(`✅ Found muxed format: ${muxed.quality || '360p'} ${muxed.extension || 'mp4'} (${muxed.sizeText || '?'})`);
-                }
-            }
-            // If no muxed found, fall back to regex
-            if (!downloadLink) {
-                const jsonStr2 = JSON.stringify(d2);
-                const urlMatch2 = jsonStr2.match(/"(https:\/\/[^"]+googlevideo\.com\/videoplayback[^"]+)"/);
-                if (urlMatch2) {
-                    downloadLink = urlMatch2[1];
-                    console.log('⚠️ Using regex fallback URL (may lack audio)');
+                    console.log(`✅ Found muxed format from youtube-media-downloader`);
                 }
             }
         } catch (err) {
-            console.log('⚠️ Fallback RapidAPI failed:', err.response ? JSON.stringify(err.response.data) : err.message);
+            console.log('⚠️ youtube-media-downloader failed:', err.message);
         }
     }
 
     if (!downloadLink) {
-        console.error('❌ FATAL: Could not get a valid MP4 download link from RapidAPI. Make sure your RapidAPI Key is actively subscribed to the Free plan on one of the APIs above.');
+        console.error('❌ FATAL: Could not get any download link.');
         return false;
     }
 
-    console.log('✅ Found MP4 Download Link! Streaming to file...');
-    
+    console.log('✅ Streaming URL to file...');
     try {
         const writer = fs.createWriteStream(outputPath);
         const response = await axios({
@@ -135,9 +141,9 @@ async function downloadVideo(videoUrl, outputPath) {
 
         response.data.pipe(writer);
 
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             writer.on('finish', () => {
-                console.log('✅ Download complete!');
+                console.log('✅ RapidAPI Download complete!');
                 resolve(true);
             });
             writer.on('error', (err) => {
