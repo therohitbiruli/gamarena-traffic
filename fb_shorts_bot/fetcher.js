@@ -57,24 +57,31 @@ async function downloadVideo(videoUrl, outputPath) {
         // Attempt 1: Cloud Api Hub - Youtube Downloader
         console.log('📡 Requesting download link from Cloud Api Hub RapidAPI...');
         const res1 = await axios.get('https://cloud-api-hub-youtube-downloader.p.rapidapi.com/download', {
-            params: { id: videoId, filter: 'audioandvideo', quality: 'lowest' },
+            params: { id: videoId, filter: 'audioandvideo' },
             headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'cloud-api-hub-youtube-downloader.p.rapidapi.com' }
         });
         
-        // Response can be a single object with .url or an array of formats
         const data = res1.data;
         if (data && data.url) {
+            // Single URL response (when filter works)
             downloadLink = data.url;
+            console.log('✅ Got direct muxed URL from Cloud Api Hub');
         } else if (Array.isArray(data) && data.length > 0) {
-            // Pick first entry that has both audio and video
-            const pick = data.find(f => f.acodec !== 'none' && f.vcodec !== 'none') || data[0];
-            if (pick && pick.url) downloadLink = pick.url;
+            // Array of formats - pick one with BOTH audio and video (muxed)
+            console.log(`📋 Got ${data.length} formats, finding muxed (audio+video)...`);
+            const muxed = data.find(f => f.acodec && f.acodec !== 'none' && f.vcodec && f.vcodec !== 'none');
+            if (muxed && muxed.url) {
+                downloadLink = muxed.url;
+                console.log(`✅ Found muxed format: ${muxed.format_id || muxed.itag || '?'} (${muxed.ext || 'mp4'})`);
+            }
         }
         if (!downloadLink) {
-            // Regex fallback
             const jsonStr = JSON.stringify(data);
             const urlMatch = jsonStr.match(/"(https:\/\/[^"]+googlevideo\.com\/videoplayback[^"]+)"/);
-            if (urlMatch) downloadLink = urlMatch[1];
+            if (urlMatch) {
+                downloadLink = urlMatch[1];
+                console.log('⚠️ Using regex fallback URL (may lack audio)');
+            }
         }
     } catch (err) {
         console.log('⚠️ Primary RapidAPI failed:', err.response ? JSON.stringify(err.response.data) : err.message);
@@ -88,9 +95,24 @@ async function downloadVideo(videoUrl, outputPath) {
                 params: { videoId: videoId },
                 headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'youtube-media-downloader.p.rapidapi.com' }
             });
-            const jsonStr2 = JSON.stringify(res2.data);
-            const urlMatch2 = jsonStr2.match(/"(https:\/\/[^"]+googlevideo\.com\/videoplayback[^"]+)"/);
-            if (urlMatch2) downloadLink = urlMatch2[1];
+            const d2 = res2.data;
+            // Pick the muxed format (has both audio+video) - usually 360p MP4
+            if (d2.videos && d2.videos.items && d2.videos.items.length > 0) {
+                const muxed = d2.videos.items.find(v => v.hasAudio === true || v.hasAudio === undefined);
+                if (muxed && muxed.url) {
+                    downloadLink = muxed.url;
+                    console.log(`✅ Found muxed format: ${muxed.quality || '360p'} ${muxed.extension || 'mp4'} (${muxed.sizeText || '?'})`);
+                }
+            }
+            // If no muxed found, fall back to regex
+            if (!downloadLink) {
+                const jsonStr2 = JSON.stringify(d2);
+                const urlMatch2 = jsonStr2.match(/"(https:\/\/[^"]+googlevideo\.com\/videoplayback[^"]+)"/);
+                if (urlMatch2) {
+                    downloadLink = urlMatch2[1];
+                    console.log('⚠️ Using regex fallback URL (may lack audio)');
+                }
+            }
         } catch (err) {
             console.log('⚠️ Fallback RapidAPI failed:', err.response ? JSON.stringify(err.response.data) : err.message);
         }
