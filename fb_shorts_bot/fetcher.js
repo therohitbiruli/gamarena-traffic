@@ -74,104 +74,93 @@ async function downloadVideo(videoUrl, outputPath) {
         console.log('⚠️ yt-dlp download failed, falling back to RapidAPI...');
     }
 
-    // Attempt 2: RapidAPI Fallback
-    console.log('📡 Attempting fallback download via RapidAPI...');
+    // Attempt 2: Cobalt Proxy API Fallback (Bypasses IP blocks)
+    console.log('📡 Attempting fallback download via Cobalt APIs...');
     const axios = require('axios');
-    const videoId = videoUrl.split('v=')[1] || videoUrl.split('/').pop();
-    const apiKey = process.env.RAPIDAPI_KEY || '20e388f737msh778002f578d86abp1c58abjsn488181a65fd2';
-    let downloadLink = null;
+    
+    // List of public Cobalt instances to try in order
+    const cobaltInstances = [
+        'https://api.cobalt.tools',
+        'https://co.wuk.sh',
+        'https://cobalt.kwiatektv.me',
+        'https://cobalt.qewertyy.dev'
+    ];
 
-    try {
-        // YouTube Media Downloader (Attempt first because it returns real MP4s)
-        console.log('📡 Trying Fallback RapidAPI (youtube-media-downloader)...');
-        const res2 = await axios.get('https://youtube-media-downloader.p.rapidapi.com/v2/video/details', {
-            params: { videoId: videoId },
-            headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'youtube-media-downloader.p.rapidapi.com' }
-        });
-        const d2 = res2.data;
-        if (d2.videos && d2.videos.items && d2.videos.items.length > 0) {
-            const muxed = d2.videos.items.find(v => v.hasAudio === true || v.hasAudio === undefined);
-            if (muxed && muxed.url) {
-                downloadLink = muxed.url;
-                console.log(`✅ Found muxed format from youtube-media-downloader`);
-            }
-        }
-    } catch (err) {
-        console.log('⚠️ youtube-media-downloader failed:', err.message);
-    }
+    let downloadSuccess = false;
 
-    if (!downloadLink) {
+    for (const instance of cobaltInstances) {
+        console.log(`📡 Trying Cobalt Instance: ${instance}...`);
         try {
-            // Cloud Api Hub (Fallback)
-            console.log('📡 Requesting download link from Cloud Api Hub...');
-            const res1 = await axios.get('https://cloud-api-hub-youtube-downloader.p.rapidapi.com/download', {
-                params: { id: videoId },
-                headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'cloud-api-hub-youtube-downloader.p.rapidapi.com' }
+            const res = await axios.post(`${instance}/api/json`, {
+                url: videoUrl,
+                vQuality: '720',
+                filenamePattern: 'classic',
+                isAudioOnly: false,
+                disableMetadata: true
+            }, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                },
+                timeout: 10000
             });
-            
-            const data = res1.data;
-            let formats = [];
-            if (Array.isArray(data)) formats = data;
-            else if (data && data.formats) formats = data.formats;
-            
-            if (formats.length > 0) {
-                const muxed = formats.find(f => f.acodec && f.acodec !== 'none' && f.vcodec && f.vcodec !== 'none' && !f.url.includes('hls'));
-                if (muxed && muxed.url) {
-                    downloadLink = muxed.url;
-                    console.log(`✅ Found muxed format from Cloud Api Hub`);
+
+            if (res.data && res.data.url) {
+                const downloadLink = res.data.url;
+                console.log(`✅ Found proxied URL from ${instance}`);
+                
+                console.log('✅ Streaming URL to file...');
+                const response = await axios({
+                    url: downloadLink,
+                    method: 'GET',
+                    responseType: 'stream',
+                    validateStatus: status => status === 200,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    },
+                    timeout: 60000
+                });
+
+                const contentType = response.headers['content-type'];
+                if (!contentType || !contentType.startsWith('video/')) {
+                    throw new Error(`Non-video content: ${contentType}`);
                 }
+
+                const writer = fs.createWriteStream(outputPath);
+                response.data.pipe(writer);
+
+                downloadSuccess = await new Promise((resolve) => {
+                    writer.on('finish', () => {
+                        const stat = fs.statSync(outputPath);
+                        if (stat.size < 100000) {
+                            console.error('❌ Downloaded file is too small! Size:', stat.size);
+                            try { fs.unlinkSync(outputPath); } catch(e) {}
+                            resolve(false);
+                        } else {
+                            console.log('✅ Cobalt Download complete! Size:', stat.size);
+                            resolve(true);
+                        }
+                    });
+                    writer.on('error', (err) => {
+                        console.error('❌ Error writing video file:', err.message);
+                        resolve(false);
+                    });
+                });
+
+                if (downloadSuccess) break; // Exit loop if successful
             }
         } catch (err) {
-            console.log('⚠️ Cloud Api Hub failed:', err.message);
+            console.log(`⚠️ Instance ${instance} failed:`, err.message);
         }
     }
 
-    if (!downloadLink) {
-        console.error('❌ FATAL: Could not get any download link.');
+    if (!downloadSuccess) {
+        console.error('❌ FATAL: Could not download the video from any source.');
         return false;
     }
 
-    console.log('✅ Streaming URL to file...');
-    try {
-        const response = await axios({
-            url: downloadLink,
-            method: 'GET',
-            responseType: 'stream',
-            validateStatus: status => status === 200, // Only accept 200 OK
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-        });
-
-        const contentType = response.headers['content-type'];
-        if (!contentType || !contentType.startsWith('video/')) {
-            throw new Error(`RapidAPI returned non-video content: ${contentType}`);
-        }
-
-        const writer = fs.createWriteStream(outputPath);
-        response.data.pipe(writer);
-
-        return new Promise((resolve) => {
-            writer.on('finish', () => {
-                const stat = fs.statSync(outputPath);
-                if (stat.size < 100000) { // If less than 100KB, it's a corrupted stream or error page
-                    console.error('❌ RapidAPI downloaded file is too small! Size:', stat.size);
-                    try { fs.unlinkSync(outputPath); } catch(e) {}
-                    resolve(false);
-                } else {
-                    console.log('✅ RapidAPI Download complete! Size:', stat.size);
-                    resolve(true);
-                }
-            });
-            writer.on('error', (err) => {
-                console.error('❌ Error writing video file:', err);
-                resolve(false);
-            });
-        });
-    } catch (error) {
-        console.error('❌ Error streaming video file:', error.message);
-        return false;
-    }
+    return true;
 }
 
 module.exports = {
