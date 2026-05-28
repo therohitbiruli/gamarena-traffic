@@ -52,18 +52,15 @@ async function downloadVideo(videoUrl, outputPath) {
     try {
         console.log('📡 Attempting primary download via native yt-dlp...');
         
-        const { execSync } = require('child_process');
-        
-        // Dynamically install yt-dlp since we can't edit Github Actions workflows
-        console.log('📦 Installing/Updating yt-dlp...');
-        try { execSync('python3 -m pip install -U yt-dlp', { stdio: 'ignore' }); } catch(e) {}
-        
-        let command = `python3 -m yt_dlp -o "${outputPath}" -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --extractor-args "youtube:player_client=ios,android,web" --no-warnings "${videoUrl}"`;
+        let command = `yt-dlp -o "${outputPath}" -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --no-warnings "${videoUrl}"`;
         
         if (fs.existsSync(cookiesPath)) {
             command += ` --cookies "${cookiesPath}"`;
+        } else {
+            command += ` --extractor-args "youtube:player_client=ios,android,web"`;
         }
 
+        const { execSync } = require('child_process');
         execSync(command, { stdio: 'inherit' });
         
         if (fs.existsSync(outputPath)) {
