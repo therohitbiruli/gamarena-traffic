@@ -20,7 +20,7 @@ async function manualUpload() {
 
     if(fs.existsSync('test_dl.mp4')) {
         console.log('✅ Found test_dl.mp4! Uploading...');
-        const success = await publishVideoToFacebook(videoInfo, 'test_dl.mp4', accountConfig);
+        const success = await publishVideoToFacebook(accountConfig.pageId, accountConfig.accessToken, 'test_dl.mp4', videoInfo.title);
         if(success) {
             console.log('✅ Manual upload successful!');
         } else {
