@@ -4,6 +4,7 @@ const path = require('path');
 const db = require('./database');
 
 const cookiesPath = path.join(__dirname, 'cookies.txt');
+const relativeCookiesPath = 'cookies.txt';
 
 async function getNextVideoToProcess(channelUrl) {
     console.log(`🔍 Fetching videos from ${channelUrl}...`);
@@ -14,7 +15,7 @@ async function getNextVideoToProcess(channelUrl) {
         };
         
         if (fs.existsSync(cookiesPath)) {
-            options.cookies = cookiesPath;
+            options.cookies = relativeCookiesPath;
             console.log('🍪 Using YouTube Cookies for authentication!');
         }
 
@@ -52,21 +53,18 @@ async function downloadVideo(videoUrl, outputPath) {
     try {
         console.log('📡 Attempting primary download via native yt-dlp...');
         
-        const { execSync } = require('child_process');
-        
-        // Dynamically install yt-dlp since we can't edit Github Actions workflows
-        console.log('📦 Installing/Updating yt-dlp...');
-        try { execSync('python3 -m pip install -U yt-dlp', { stdio: 'ignore' }); } catch(e) {}
-        
-        let command = `python3 -m yt_dlp -o "${outputPath}" -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --no-warnings "${videoUrl}"`;
-        
+        // Use youtube-dl-exec to download (automatically handles binary and OS differences)
+        const downloadOptions = {
+            output: outputPath,
+            format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            noWarnings: true
+        };
+
         if (fs.existsSync(cookiesPath)) {
-            command += ` --cookies "${cookiesPath}"`;
-        } else {
-            command += ` --extractor-args "youtube:player_client=ios,android,web"`;
+            downloadOptions.cookies = relativeCookiesPath;
         }
 
-        execSync(command, { stdio: 'inherit' });
+        await youtubedl(videoUrl, downloadOptions);
         
         if (fs.existsSync(outputPath)) {
             console.log('✅ Download complete via native yt-dlp!');
